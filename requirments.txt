@@ -1,0 +1,6 @@
+pickle
+streamlit
+numpy
+pandas
+sckiti-learn
+mysql-connector-python
