@@ -8,7 +8,10 @@ from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import os
+from sklearn.cluster import KMeans
+from sklearn.metrics.pairwise import cosine_similarity
 from langchain_community.embeddings import HuggingFaceHubEmbeddings
+from sqlalchemy import create_engine
 with open("food.json","r") as file :
   a=json.load(file)
 with open("data.json","r") as file :
@@ -54,39 +57,31 @@ nltk.download('wordnet')
 final['snippet.tags'] = final['snippet.tags'].apply(lambda x: [lemmatizer.lemmatize(word) for word in x if word not in c])
 final["snippet.tags"]=final["snippet.tags"].apply(lambda x: " ".join(x) if isinstance(x,list) else None)
 load_dotenv()
-import numpy as np
-import os
-from sklearn.cluster import KMeans
-from sklearn.metrics.pairwise import cosine_similarity
-from langchain_community.embeddings import HuggingFaceHubEmbeddings
 
-# Load embeddings model
+
+
 embedding = HuggingFaceHubEmbeddings(
     model="sentence-transformers/all-MiniLM-L6-v2",
     huggingfacehub_api_token=os.getenv('HUGGINGFACEHUB_API_TOKEN')
 )
 
-# Generate embeddings for all channel tags
+
 embeddings = embedding.embed_documents(final["snippet.tags"])
-embeddings = np.array(embeddings)  # Convert list to NumPy array
+embeddings = np.array(embeddings) 
 
 # Cluster the embeddings
 num_clusters = 100  
 kmeans = KMeans(n_clusters=num_clusters, random_state=42)
-final['cluster'] = kmeans.fit_predict(embeddings)  # Assign clusters to final dataframe
+final['cluster'] = kmeans.fit_predict(embeddings)  
 
-# Function to recommend channels
 def recommend_channels(query):
     query_vector = np.array(embedding.embed_query(query)).reshape(1, -1)
 
-    # Predict the cluster of the input query
     input_cluster = kmeans.predict(query_vector)[0]
     cluster_channels = final[final['cluster'] == input_cluster]
 
-    # Extract embeddings for only the channels in the same cluster
     selected_embeddings = embeddings[cluster_channels.index.to_numpy()]
 
-    # Compute similarity scores
     similarity_scores = cosine_similarity(query_vector, selected_embeddings).flatten()
     recommended_indices = similarity_scores.argsort()[::-1]
     recommended_channels = cluster_channels.iloc[recommended_indices]
@@ -94,7 +89,10 @@ def recommend_channels(query):
     print("Recommended channels:")
     print(recommended_channels)
 
-# Get user query and recommend channels
 query = input("Search relevant content: ")
 if query:
     recommend_channels(query)
+
+engine=create_engine('sqlite:///youtube.db')
+final.to_sql('youtube',engine,index=False)
+
