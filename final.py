@@ -57,19 +57,13 @@ nltk.download('wordnet')
 final['snippet.tags'] = final['snippet.tags'].apply(lambda x: [lemmatizer.lemmatize(word) for word in x if word not in c])
 final["snippet.tags"]=final["snippet.tags"].apply(lambda x: " ".join(x) if isinstance(x,list) else None)
 load_dotenv()
-
-
-
 embedding = HuggingFaceHubEmbeddings(
     model="sentence-transformers/all-MiniLM-L6-v2",
     huggingfacehub_api_token=os.getenv('HUGGINGFACEHUB_API_TOKEN')
 )
-
-
 embeddings = embedding.embed_documents(final["snippet.tags"])
 embeddings = np.array(embeddings) 
 
-# Cluster the embeddings
 num_clusters = 100  
 kmeans = KMeans(n_clusters=num_clusters, random_state=42)
 final['cluster'] = kmeans.fit_predict(embeddings)  
@@ -95,4 +89,12 @@ if query:
 
 engine=create_engine('sqlite:///youtube.db')
 final.to_sql('youtube',engine,index=False)
-
+engine=create_engine('sqlite:///youtube.db')
+a=final[['snippet.title','snippet.thumbnails.default.url','snippet.channelTitle','snippet.tags','statistics.viewCount','statistics.likeCount','cluster']]
+a.to_sql("youtube",engine,index=False)
+import pickle 
+with open("model2.pkl","wb")as file:
+    pickle.dump(kmeans,file)
+import pickle 
+with open('X2.pkl',"wb")as file2:
+    pickle.dump(embedding,file2)    
